@@ -1,71 +1,115 @@
 'use client'
 
-import { useContractRead, useContractWrite, useAccount } from 'wagmi'
-import { contractConfig } from '@/lib/contract'
+import { useAccount } from 'wagmi'
+import { useReadContract, useWriteContract } from 'wagmi'
+import { useQuery } from '@tanstack/react-query'
+import { formatEther, parseEther } from 'viem'
+import { contract } from '@/lib/contract'
 import { useState } from 'react'
 
 interface Lock {
-  id: number
   amount: bigint
-  lockTime: bigint
   unlockTime: bigint
-  withdrawn: boolean
+  isUnlocking: boolean
 }
 
 export function useLocks() {
   const { address } = useAccount()
-  const [isLoading, setIsLoading] = useState(false)
+  const [amount, setAmount] = useState('')
+  const [lockTime, setLockTime] = useState('')
 
-  const { data: lockCount = BigInt(0) } = useContractRead({
-    ...contractConfig,
-    functionName: 'getLockCount',
+  // Read contract data
+  const { data: totalLocked, isLoading: isLoadingTotal } = useReadContract({
+    ...contract,
+    functionName: 'totalLocked',
+  })
+
+  const { data: unlockDelay, isLoading: isLoadingDelay } = useReadContract({
+    ...contract,
+    functionName: 'unlockDelay',
+  })
+
+  const { data: tokenAddress, isLoading: isLoadingToken } = useReadContract({
+    ...contract,
+    functionName: 'token',
+  })
+
+  const { data: userLocks, isLoading: isLoadingLocks } = useReadContract({
+    ...contract,
+    functionName: 'getLocks',
     args: [address as `0x${string}`],
-    enabled: !!address,
+    query: {
+      enabled: !!address,
+      select: (data) => {
+        if (!data) return []
+        return data.map((lock: Lock) => ({
+          amount: formatEther(lock.amount),
+          unlockTime: Number(lock.unlockTime) * 1000,
+          isUnlocking: lock.isUnlocking,
+        }))
+      },
+    },
   })
 
-  const { data: locks = null } = useContractRead({
-    ...contractConfig,
-    functionName: 'getLock',
-    args: [address as `0x${string}`, BigInt(0)],
-    enabled: !!address && lockCount > BigInt(0),
-  })
+  // Write contract functions
+  const { writeContract: lock, isPending: isLocking } = useWriteContract()
+  const { writeContract: initiateUnlock, isPending: isInitiatingUnlock } = useWriteContract()
+  const { writeContract: withdraw, isPending: isWithdrawing } = useWriteContract()
 
-  const { writeAsync: initiateUnlock } = useContractWrite({
-    ...contractConfig,
-    functionName: 'initiateUnlock',
-  })
+  const handleLock = async () => {
+    if (!amount || !lockTime) return
+    try {
+      await lock({
+        ...contract,
+        functionName: 'lock',
+        args: [parseEther(amount), BigInt(lockTime)],
+      })
+      setAmount('')
+      setLockTime('')
+    } catch (error) {
+      console.error('Error locking tokens:', error)
+    }
+  }
 
-  const { writeAsync: withdraw } = useContractWrite({
-    ...contractConfig,
-    functionName: 'withdraw',
-  })
+  const handleInitiateUnlock = async (lockIndex: number) => {
+    try {
+      await initiateUnlock({
+        ...contract,
+        functionName: 'initiateUnlock',
+        args: [BigInt(lockIndex)],
+      })
+    } catch (error) {
+      console.error('Error initiating unlock:', error)
+    }
+  }
 
-  const formattedLocks = locks ? [{
-    id: 0,
-    amount: locks[0] || BigInt(0),
-    lockTime: locks[1] || BigInt(0),
-    unlockTime: locks[2] || BigInt(0),
-    withdrawn: locks[3] || false,
-  }] : []
+  const handleWithdraw = async (lockIndex: number) => {
+    try {
+      await withdraw({
+        ...contract,
+        functionName: 'withdraw',
+        args: [BigInt(lockIndex)],
+      })
+    } catch (error) {
+      console.error('Error withdrawing tokens:', error)
+    }
+  }
 
   return {
-    locks: formattedLocks,
-    isLoading,
-    initiateUnlock: async (lockId: number) => {
-      try {
-        setIsLoading(true)
-        await initiateUnlock({ args: [BigInt(lockId)] })
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    withdraw: async (lockId: number) => {
-      try {
-        setIsLoading(true)
-        await withdraw({ args: [BigInt(lockId)] })
-      } finally {
-        setIsLoading(false)
-      }
-    },
+    amount,
+    setAmount,
+    lockTime,
+    setLockTime,
+    totalLocked: totalLocked ? formatEther(totalLocked) : '0',
+    unlockDelay: unlockDelay ? Number(unlockDelay) : 0,
+    tokenAddress,
+    userLocks: userLocks || [],
+    isLoading: isLoadingTotal || isLoadingDelay || isLoadingToken || isLoadingLocks,
+    handleLock,
+    handleInitiateUnlock,
+    handleWithdraw,
+    isLocking,
+    isInitiatingUnlock,
+    isWithdrawing,
   }
 } 

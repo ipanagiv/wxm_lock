@@ -24,7 +24,7 @@ interface Transaction {
 export default function Dashboard() {
   const { address } = useAccount()
   const { data: blockNumber } = useBlockNumber()
-  const { locks, isLoading, initiateUnlock, withdraw } = useLocks()
+  const { locks, isLoading, initiateUnlock, withdraw, totalLocked, unlockDelay, tokenAddress, error } = useLocks()
   const [pendingTx, setPendingTx] = useState<string | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
 
@@ -46,14 +46,65 @@ export default function Dashboard() {
     }
   }
 
+  const formatDate = (timestamp: bigint) => {
+    return new Date(Number(timestamp) * 1000).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const getTimeRemaining = (unlockTime: bigint) => {
+    if (unlockTime === BigInt(0)) return null
+    const now = Math.floor(Date.now() / 1000)
+    const remaining = Number(unlockTime) - now
+    if (remaining <= 0) return 'Ready to withdraw'
+    const days = Math.floor(remaining / 86400)
+    const hours = Math.floor((remaining % 86400) / 3600)
+    const minutes = Math.floor((remaining % 3600) / 60)
+    return `${days}d ${hours}h ${minutes}m remaining`
+  }
+
+  const formatDelay = (delay: bigint) => {
+    const days = Number(delay) / 86400
+    return `${days} days`
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
       <main className="container mx-auto px-4 py-8 pt-24">
-        <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">Your Locked Tokens</h2>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+            Your Locked Tokens
+          </h2>
+          {address && (
+            <div className="text-sm text-gray-500">
+              Connected: {address.slice(0, 6)}...{address.slice(-4)}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         {address ? (
           <>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-12">
+              <div className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg">
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Contract Info</h3>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p>Total Locked: {formatEther(totalLocked || BigInt(0))} WXM</p>
+                  <p>Unlock Delay: {unlockDelay ? formatDelay(unlockDelay) : 'Loading...'}</p>
+                  <p>Token Address: {tokenAddress ? `${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)}` : 'Loading...'}</p>
+                </div>
+              </div>
+
               {isLoading ? (
                 <div className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg animate-pulse">
                   <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
@@ -64,19 +115,29 @@ export default function Dashboard() {
                 locks.map((lock: Lock) => (
                   <div key={lock.id} className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
                     <div className="space-y-4">
-                      <p className="text-sm text-gray-500">Lock ID: {lock.id}</p>
-                      <p className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-                        {formatEther(lock.amount || BigInt(0))} WXM
-                      </p>
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-600">
-                          Locked: {new Date(Number(lock.lockTime || BigInt(0)) * 1000).toLocaleString()}
-                        </p>
-                        {lock.unlockTime > BigInt(0) && (
-                          <p className="text-sm text-gray-600">
-                            Unlock Time: {new Date(Number(lock.unlockTime) * 1000).toLocaleString()}
-                          </p>
+                      <div className="flex justify-between items-start">
+                        <p className="text-sm text-gray-500">Lock ID: {lock.id}</p>
+                        {lock.withdrawn && (
+                          <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                            Withdrawn
+                          </span>
                         )}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                          {formatEther(lock.amount || BigInt(0))} WXM
+                        </p>
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <p>Locked: {formatDate(lock.lockTime || BigInt(0))}</p>
+                          {lock.unlockTime > BigInt(0) && (
+                            <>
+                              <p>Unlock Time: {formatDate(lock.unlockTime)}</p>
+                              <p className="text-blue-600 font-medium">
+                                {getTimeRemaining(lock.unlockTime)}
+                              </p>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex gap-2 mt-4">
                         {!lock.withdrawn && (
@@ -167,6 +228,12 @@ export default function Dashboard() {
                 <p className="text-gray-500">No recent transactions</p>
               )}
             </div>
+
+            {blockNumber && (
+              <div className="mt-8 text-sm text-gray-500">
+                Current block: {blockNumber.toString()}
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center py-12">
