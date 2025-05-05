@@ -104,7 +104,7 @@ export const contractABI = [
 // Replace with your contract address
 export const contractAddress = {
   [mainnet.id]: 'YOUR_MAINNET_CONTRACT_ADDRESS',
-  [sepolia.id]: 'YOUR_SEPOLIA_CONTRACT_ADDRESS',
+  [sepolia.id]: '0xc29DB8E4F3606e4b2DFcCA39e73eC231114dFF96',
 }
 
 export const contractConfig = {

@@ -1,21 +1,32 @@
 'use client'
 
-import { useAccount } from 'wagmi'
+import { useAccount, useBlockNumber } from 'wagmi'
 import { Navbar } from '@/components/Navbar'
-import { useBlockNumber, useTransactionHistory } from 'wagmi'
 import { useLocks } from '@/hooks/useLocks'
 import { formatEther } from 'ethers'
 import { useState } from 'react'
 
+interface Lock {
+  id: number
+  amount: bigint
+  lockTime: bigint
+  unlockTime: bigint
+  withdrawn: boolean
+}
+
+interface Transaction {
+  hash: string
+  to?: string
+  status: string
+  blockNumber?: number
+}
+
 export default function Dashboard() {
   const { address } = useAccount()
   const { data: blockNumber } = useBlockNumber()
-  const { data: transactions } = useTransactionHistory({
-    address,
-    limit: 10,
-  })
   const { locks, isLoading, initiateUnlock, withdraw } = useLocks()
   const [pendingTx, setPendingTx] = useState<string | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
 
   const handleInitiateUnlock = async (lockId: number) => {
     try {
@@ -36,41 +47,45 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <h2 className="text-2xl font-semibold mb-4">Your Locked Tokens</h2>
+      <main className="container mx-auto px-4 py-8 pt-24">
+        <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">Your Locked Tokens</h2>
         {address ? (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-12">
               {isLoading ? (
-                <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">Loading...</p>
+                <div className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                 </div>
               ) : locks?.length ? (
-                locks.map((lock) => (
-                  <div key={lock.id} className="p-4 border rounded-lg">
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Lock ID: {lock.id}</p>
-                      <p className="text-lg font-semibold">
+                locks.map((lock: Lock) => (
+                  <div key={lock.id} className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-500">Lock ID: {lock.id}</p>
+                      <p className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
                         {formatEther(lock.amount)} WXM
                       </p>
-                      <p className="text-sm">
-                        Locked: {new Date(Number(lock.lockTime) * 1000).toLocaleString()}
-                      </p>
-                      {lock.unlockTime > 0 && (
-                        <p className="text-sm">
-                          Unlock Time: {new Date(Number(lock.unlockTime) * 1000).toLocaleString()}
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600">
+                          Locked: {new Date(Number(lock.lockTime) * 1000).toLocaleString()}
                         </p>
-                      )}
+                        {lock.unlockTime > BigInt(0) && (
+                          <p className="text-sm text-gray-600">
+                            Unlock Time: {new Date(Number(lock.unlockTime) * 1000).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
                       <div className="flex gap-2 mt-4">
                         {!lock.withdrawn && (
                           <>
-                            {lock.unlockTime === 0n ? (
+                            {lock.unlockTime === BigInt(0) ? (
                               <button
                                 onClick={() => handleInitiateUnlock(lock.id)}
                                 disabled={pendingTx === 'initiateUnlock'}
-                                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                                className="px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {pendingTx === 'initiateUnlock' ? 'Processing...' : 'Initiate Unlock'}
                               </button>
@@ -78,7 +93,7 @@ export default function Dashboard() {
                               <button
                                 onClick={() => handleWithdraw(lock.id)}
                                 disabled={pendingTx === 'withdraw'}
-                                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                                className="px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {pendingTx === 'withdraw' ? 'Processing...' : 'Withdraw'}
                               </button>
@@ -90,46 +105,46 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">No locked tokens found</p>
+                <div className="p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg">
+                  <p className="text-sm text-gray-500">No locked tokens found</p>
                 </div>
               )}
             </div>
 
-            <div className="mt-8">
-              <h3 className="text-xl font-semibold mb-4">Recent Transactions</h3>
-              {transactions?.length ? (
-                <div className="border rounded-lg overflow-hidden">
+            <div className="mt-12">
+              <h3 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">Recent Transactions</h3>
+              {transactions.length > 0 ? (
+                <div className="rounded-xl bg-white/50 backdrop-blur-sm border border-white/20 shadow-lg overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-muted">
+                    <thead className="bg-white/20">
                       <tr>
-                        <th className="px-4 py-2 text-left">Hash</th>
-                        <th className="px-4 py-2 text-left">Type</th>
-                        <th className="px-4 py-2 text-left">Status</th>
-                        <th className="px-4 py-2 text-left">Block</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Hash</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Type</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Status</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Block</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {transactions.map((tx) => (
-                        <tr key={tx.hash} className="border-t">
-                          <td className="px-4 py-2">
+                      {transactions.map((tx: Transaction) => (
+                        <tr key={tx.hash} className="border-t border-white/20 hover:bg-white/20 transition-colors">
+                          <td className="px-6 py-4">
                             <a
                               href={`https://etherscan.io/tx/${tx.hash}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-primary hover:underline"
+                              className="text-blue-500 hover:text-blue-600 transition-colors"
                             >
                               {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
                             </a>
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-6 py-4 text-sm text-gray-600">
                             {tx.to?.toLowerCase() === 'YOUR_CONTRACT_ADDRESS'.toLowerCase()
                               ? 'Lock/Unlock'
                               : 'Other'}
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-6 py-4">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs ${
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
                                 tx.status === 'success'
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-red-100 text-red-800'
@@ -138,9 +153,9 @@ export default function Dashboard() {
                               {tx.status}
                             </span>
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-6 py-4 text-sm text-gray-600">
                             {blockNumber && tx.blockNumber
-                              ? blockNumber - tx.blockNumber
+                              ? Number(blockNumber) - tx.blockNumber
                               : '-'}
                           </td>
                         </tr>
@@ -149,12 +164,14 @@ export default function Dashboard() {
                   </table>
                 </div>
               ) : (
-                <p className="text-muted-foreground">No recent transactions</p>
+                <p className="text-gray-500">No recent transactions</p>
               )}
             </div>
           </>
         ) : (
-          <p className="text-muted-foreground">Please connect your wallet to view your locked tokens</p>
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Please connect your wallet to view your locked tokens</p>
+          </div>
         )}
       </main>
     </div>
