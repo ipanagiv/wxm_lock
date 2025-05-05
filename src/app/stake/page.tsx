@@ -10,6 +10,7 @@ import { useState } from 'react'
 
 type FormData = {
   amount: string
+  lockTime: string
 }
 
 export default function Stake() {
@@ -24,7 +25,7 @@ export default function Stake() {
       await writeContract({
         ...contractConfig,
         functionName: 'lock',
-        args: [parseEther(data.amount)],
+        args: [parseEther(data.amount), BigInt(data.lockTime)],
       })
       reset()
     } finally {
@@ -58,6 +59,27 @@ export default function Stake() {
               />
               {errors.amount && (
                 <p className="mt-1 text-sm text-red-500">{errors.amount.message}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="lockTime" className="block text-sm font-medium mb-1">
+                Lock Time (in seconds)
+              </label>
+              <input
+                type="number"
+                id="lockTime"
+                {...register('lockTime', { 
+                  required: 'Lock time is required',
+                  min: {
+                    value: 1,
+                    message: 'Lock time must be at least 1 second'
+                  }
+                })}
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="Enter lock time in seconds"
+              />
+              {errors.lockTime && (
+                <p className="mt-1 text-sm text-red-500">{errors.lockTime.message}</p>
               )}
             </div>
             <button

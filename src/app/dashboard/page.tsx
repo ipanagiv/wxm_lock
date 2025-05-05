@@ -5,11 +5,14 @@ import { Navbar } from '@/components/Navbar'
 import { useLocks } from '@/hooks/useLocks'
 import { formatEther } from 'ethers'
 import { useState } from 'react'
+import { contract } from '@/lib/contract'
 
 interface Lock {
   amount: string
+  lockTime: number
   unlockTime: number
   isUnlocking: boolean
+  withdrawn: boolean
 }
 
 interface Transaction {
@@ -28,6 +31,7 @@ export default function Dashboard() {
     totalLocked,
     unlockDelay,
     tokenAddress,
+    tokenBalance,
     userLocks,
     isLoading,
     handleInitiateUnlock,
@@ -91,8 +95,13 @@ export default function Dashboard() {
                         <button className="gradient-button">Lock</button>
                       </div>
                       <div className="flex justify-between text-sm text-gray-400">
-                        <span>Balance: 0 WXM</span>
-                        <button className="text-green-400 hover:text-green-300">Max</button>
+                        <span>Balance: {tokenBalance} WXM</span>
+                        <button 
+                          onClick={() => setAmount(tokenBalance)}
+                          className="text-green-400 hover:text-green-300"
+                        >
+                          Max
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -135,20 +144,30 @@ export default function Dashboard() {
                               Unlocking
                             </span>
                           )}
+                          {lock.withdrawn && (
+                            <span className="px-2 py-1 text-xs font-medium bg-gray-900/50 text-gray-400 rounded-full">
+                              Withdrawn
+                            </span>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <p className="text-2xl font-bold gradient-text">
                             {lock.amount} WXM
                           </p>
                           <div className="text-sm text-gray-400 space-y-1">
-                            <p>Unlock Time: {formatDate(lock.unlockTime)}</p>
-                            <p className="text-green-400 font-medium">
-                              {getTimeRemaining(lock.unlockTime)}
-                            </p>
+                            <p>Lock Time: {formatDate(lock.lockTime)}</p>
+                            {lock.unlockTime > 0 && (
+                              <>
+                                <p>Unlock Time: {formatDate(lock.unlockTime)}</p>
+                                <p className="text-green-400 font-medium">
+                                  {getTimeRemaining(lock.unlockTime)}
+                                </p>
+                              </>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2 mt-4">
-                          {!lock.isUnlocking ? (
+                          {!lock.withdrawn && !lock.isUnlocking && (
                             <button
                               onClick={() => handleInitiateUnlock(index)}
                               disabled={isInitiatingUnlock}
@@ -156,7 +175,8 @@ export default function Dashboard() {
                             >
                               {isInitiatingUnlock ? 'Processing...' : 'Initiate Unlock'}
                             </button>
-                          ) : (
+                          )}
+                          {lock.isUnlocking && !lock.withdrawn && (
                             <button
                               onClick={() => handleWithdraw(index)}
                               disabled={isWithdrawing}
@@ -203,7 +223,7 @@ export default function Dashboard() {
                               </a>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-400">
-                              {tx.to?.toLowerCase() === 'YOUR_CONTRACT_ADDRESS'.toLowerCase()
+                              {tx.to?.toLowerCase() === contract.address.toLowerCase()
                                 ? 'Lock/Unlock'
                                 : 'Other'}
                             </td>
