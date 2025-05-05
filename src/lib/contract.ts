@@ -1,4 +1,3 @@
-import { getContract } from 'wagmi'
 import { mainnet, sepolia } from 'wagmi/chains'
 
 export const contractABI = [
@@ -105,9 +104,9 @@ export const contractABI = [
 export const contractAddress = {
   [mainnet.id]: 'YOUR_MAINNET_CONTRACT_ADDRESS',
   [sepolia.id]: '0xc29DB8E4F3606e4b2DFcCA39e73eC231114dFF96',
-}
+} as const
 
 export const contractConfig = {
-  address: contractAddress,
+  address: contractAddress[sepolia.id] as `0x${string}`,
   abi: contractABI,
-} 
+} as const 

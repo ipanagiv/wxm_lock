@@ -1,70 +1,69 @@
-import { useAccount } from 'wagmi'
-import { useReadContract, useWriteContract } from 'wagmi'
+'use client'
+
+import { useContractRead, useContractWrite, useAccount } from 'wagmi'
 import { contractConfig } from '@/lib/contract'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+
+interface Lock {
+  id: number
+  amount: bigint
+  lockTime: bigint
+  unlockTime: bigint
+  withdrawn: boolean
+}
 
 export function useLocks() {
   const { address } = useAccount()
-  const { writeContract } = useWriteContract()
+  const [isLoading, setIsLoading] = useState(false)
 
-  const { data: lockCount } = useReadContract({
+  const { data: lockCount = BigInt(0) } = useContractRead({
     ...contractConfig,
     functionName: 'getLockCount',
-    args: [address!],
-    query: {
-      enabled: !!address,
-    },
+    args: [address as `0x${string}`],
+    enabled: !!address,
   })
 
-  const { data: locks, isLoading } = useQuery({
-    queryKey: ['locks', address, lockCount],
-    queryFn: async () => {
-      if (!address || !lockCount) return []
-      
-      const locks = await Promise.all(
-        Array.from({ length: Number(lockCount) }, (_, i) =>
-          useReadContract({
-            ...contractConfig,
-            functionName: 'getLock',
-            args: [address, BigInt(i)],
-          }).then(({ data }) => {
-            if (!data) return null
-            const [amount, lockTime, unlockTime, withdrawn] = data
-            return {
-              id: i,
-              amount,
-              lockTime,
-              unlockTime,
-              withdrawn,
-            }
-          })
-        )
-      )
-      return locks.filter(Boolean)
-    },
-    enabled: !!address && !!lockCount,
+  const { data: locks = [] } = useContractRead({
+    ...contractConfig,
+    functionName: 'getLock',
+    args: [address as `0x${string}`, BigInt(0)],
+    enabled: !!address && lockCount > BigInt(0),
   })
 
-  const initiateUnlock = async (lockId: number) => {
-    return writeContract({
-      ...contractConfig,
-      functionName: 'initiateUnlock',
-      args: [BigInt(lockId)],
-    })
-  }
+  const { writeAsync: initiateUnlock } = useContractWrite({
+    ...contractConfig,
+    functionName: 'initiateUnlock',
+  })
 
-  const withdraw = async (lockId: number) => {
-    return writeContract({
-      ...contractConfig,
-      functionName: 'withdraw',
-      args: [BigInt(lockId)],
-    })
-  }
+  const { writeAsync: withdraw } = useContractWrite({
+    ...contractConfig,
+    functionName: 'withdraw',
+  })
 
   return {
-    locks,
+    locks: locks ? [{
+      id: 0,
+      amount: locks[0],
+      lockTime: locks[1],
+      unlockTime: locks[2],
+      withdrawn: locks[3],
+    }] : [],
     isLoading,
-    initiateUnlock,
-    withdraw,
+    initiateUnlock: async (lockId: number) => {
+      try {
+        setIsLoading(true)
+        await initiateUnlock({ args: [BigInt(lockId)] })
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    withdraw: async (lockId: number) => {
+      try {
+        setIsLoading(true)
+        await withdraw({ args: [BigInt(lockId)] })
+      } finally {
+        setIsLoading(false)
+      }
+    },
   }
 } 
