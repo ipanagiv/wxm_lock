@@ -3,6 +3,10 @@
 import { useForm } from 'react-hook-form'
 import { useAccount } from 'wagmi'
 import { Navbar } from '@/components/Navbar'
+import { contractConfig } from '@/lib/contract'
+import { useWriteContract } from 'wagmi'
+import { parseEther } from 'ethers'
+import { useState } from 'react'
 
 type FormData = {
   amount: string
@@ -10,11 +14,22 @@ type FormData = {
 
 export default function Stake() {
   const { address } = useAccount()
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>()
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>()
+  const { writeContract } = useWriteContract()
+  const [isPending, setIsPending] = useState(false)
 
   const onSubmit = async (data: FormData) => {
-    // TODO: Implement lock function
-    console.log(data)
+    try {
+      setIsPending(true)
+      await writeContract({
+        ...contractConfig,
+        functionName: 'lock',
+        args: [parseEther(data.amount)],
+      })
+      reset()
+    } finally {
+      setIsPending(false)
+    }
   }
 
   return (
@@ -31,7 +46,13 @@ export default function Stake() {
               <input
                 type="text"
                 id="amount"
-                {...register('amount', { required: 'Amount is required' })}
+                {...register('amount', { 
+                  required: 'Amount is required',
+                  pattern: {
+                    value: /^\d*\.?\d*$/,
+                    message: 'Please enter a valid number'
+                  }
+                })}
                 className="w-full px-3 py-2 border rounded-md"
                 placeholder="Enter amount"
               />
@@ -41,9 +62,10 @@ export default function Stake() {
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+              disabled={isPending}
+              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
             >
-              Lock Tokens
+              {isPending ? 'Processing...' : 'Lock Tokens'}
             </button>
           </form>
         ) : (

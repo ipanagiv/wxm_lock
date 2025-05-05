@@ -3,6 +3,9 @@
 import { useAccount } from 'wagmi'
 import { Navbar } from '@/components/Navbar'
 import { useBlockNumber, useTransactionHistory } from 'wagmi'
+import { useLocks } from '@/hooks/useLocks'
+import { formatEther } from 'ethers'
+import { useState } from 'react'
 
 export default function Dashboard() {
   const { address } = useAccount()
@@ -11,6 +14,26 @@ export default function Dashboard() {
     address,
     limit: 10,
   })
+  const { locks, isLoading, initiateUnlock, withdraw } = useLocks()
+  const [pendingTx, setPendingTx] = useState<string | null>(null)
+
+  const handleInitiateUnlock = async (lockId: number) => {
+    try {
+      setPendingTx('initiateUnlock')
+      await initiateUnlock(lockId)
+    } finally {
+      setPendingTx(null)
+    }
+  }
+
+  const handleWithdraw = async (lockId: number) => {
+    try {
+      setPendingTx('withdraw')
+      await withdraw(lockId)
+    } finally {
+      setPendingTx(null)
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -20,10 +43,57 @@ export default function Dashboard() {
         {address ? (
           <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
-              {/* Lock cards will be rendered here */}
-              <div className="p-4 border rounded-lg">
-                <p className="text-sm text-muted-foreground">No locked tokens found</p>
-              </div>
+              {isLoading ? (
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                </div>
+              ) : locks?.length ? (
+                locks.map((lock) => (
+                  <div key={lock.id} className="p-4 border rounded-lg">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Lock ID: {lock.id}</p>
+                      <p className="text-lg font-semibold">
+                        {formatEther(lock.amount)} WXM
+                      </p>
+                      <p className="text-sm">
+                        Locked: {new Date(Number(lock.lockTime) * 1000).toLocaleString()}
+                      </p>
+                      {lock.unlockTime > 0 && (
+                        <p className="text-sm">
+                          Unlock Time: {new Date(Number(lock.unlockTime) * 1000).toLocaleString()}
+                        </p>
+                      )}
+                      <div className="flex gap-2 mt-4">
+                        {!lock.withdrawn && (
+                          <>
+                            {lock.unlockTime === 0n ? (
+                              <button
+                                onClick={() => handleInitiateUnlock(lock.id)}
+                                disabled={pendingTx === 'initiateUnlock'}
+                                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                              >
+                                {pendingTx === 'initiateUnlock' ? 'Processing...' : 'Initiate Unlock'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleWithdraw(lock.id)}
+                                disabled={pendingTx === 'withdraw'}
+                                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                              >
+                                {pendingTx === 'withdraw' ? 'Processing...' : 'Withdraw'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">No locked tokens found</p>
+                </div>
+              )}
             </div>
 
             <div className="mt-8">
