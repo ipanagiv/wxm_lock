@@ -66,11 +66,11 @@ export default function Dashboard() {
                     <div className="space-y-4">
                       <p className="text-sm text-gray-500">Lock ID: {lock.id}</p>
                       <p className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-                        {formatEther(lock.amount)} WXM
+                        {formatEther(lock.amount || BigInt(0))} WXM
                       </p>
                       <div className="space-y-2">
                         <p className="text-sm text-gray-600">
-                          Locked: {new Date(Number(lock.lockTime) * 1000).toLocaleString()}
+                          Locked: {new Date(Number(lock.lockTime || BigInt(0)) * 1000).toLocaleString()}
                         </p>
                         {lock.unlockTime > BigInt(0) && (
                           <p className="text-sm text-gray-600">

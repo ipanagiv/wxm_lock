@@ -23,7 +23,7 @@ export function useLocks() {
     enabled: !!address,
   })
 
-  const { data: locks = [] } = useContractRead({
+  const { data: locks = null } = useContractRead({
     ...contractConfig,
     functionName: 'getLock',
     args: [address as `0x${string}`, BigInt(0)],
@@ -40,14 +40,16 @@ export function useLocks() {
     functionName: 'withdraw',
   })
 
+  const formattedLocks = locks ? [{
+    id: 0,
+    amount: locks[0] || BigInt(0),
+    lockTime: locks[1] || BigInt(0),
+    unlockTime: locks[2] || BigInt(0),
+    withdrawn: locks[3] || false,
+  }] : []
+
   return {
-    locks: locks ? [{
-      id: 0,
-      amount: locks[0],
-      lockTime: locks[1],
-      unlockTime: locks[2],
-      withdrawn: locks[3],
-    }] : [],
+    locks: formattedLocks,
     isLoading,
     initiateUnlock: async (lockId: number) => {
       try {
