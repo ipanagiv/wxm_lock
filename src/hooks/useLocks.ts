@@ -4,8 +4,12 @@ import { useAccount } from 'wagmi'
 import { useReadContract, useWriteContract } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { formatEther, parseEther } from 'viem'
-import { contract } from '@/lib/contract'
+import { contract, WXM_TOKEN } from '@/lib/contract'
 import { useState, useEffect } from 'react'
+import { useChainId } from 'wagmi'
+import { mainnet, sepolia, arbitrum, arbitrumSepolia } from 'wagmi/chains'
+
+type ChainId = typeof mainnet.id | typeof sepolia.id | typeof arbitrum.id | typeof arbitrumSepolia.id
 
 interface Lock {
   amount: bigint
@@ -18,6 +22,7 @@ type LockResult = [bigint, bigint, bigint, boolean]
 
 export function useLocks() {
   const { address } = useAccount()
+  const chainId = useChainId() as ChainId
   const [amount, setAmount] = useState('')
   const [lockCount, setLockCount] = useState<number>(0)
   const [locks, setLocks] = useState<Lock[]>([])
@@ -40,7 +45,7 @@ export function useLocks() {
 
   // Get token balance
   const { data: tokenBalance, isLoading: isLoadingBalance } = useReadContract({
-    address: tokenAddress as `0x${string}`,
+    address: WXM_TOKEN[chainId] as `0x${string}`,
     abi: [
       {
         inputs: [{ name: 'account', type: 'address' }],
@@ -53,7 +58,8 @@ export function useLocks() {
     functionName: 'balanceOf',
     args: [address as `0x${string}`],
     query: {
-      enabled: !!address && !!tokenAddress,
+      enabled: !!address,
+      refetchInterval: 5000, // Refetch every 5 seconds
     },
   })
 

@@ -1,5 +1,12 @@
 import { mainnet, sepolia, arbitrum, arbitrumSepolia } from 'wagmi/chains'
 
+export const WXM_TOKEN = {
+  [mainnet.id]: '0x0d505C03d30e65f6e9b4Ef88855a47a89e9b4f0a',
+  [sepolia.id]: '0x0d505C03d30e65f6e9b4Ef88855a47a89e9b4f0a',
+  [arbitrum.id]: '0xB6093B61544572Ab42A0E43AF08aBaFD41bf25A6',
+  [arbitrumSepolia.id]: '0x0d505C03d30e65f6e9b4Ef88855a47a89e9b4f0a',
+} as const
+
 export const contract = {
   address: '0x2d9D5aD216747Fa621e52b74E95B5fD128D4cee2' as `0x${string}`,
   abi: [

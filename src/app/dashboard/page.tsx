@@ -95,10 +95,11 @@ export default function Dashboard() {
                         <button className="gradient-button">Lock</button>
                       </div>
                       <div className="flex justify-between text-sm text-gray-400">
-                        <span>Balance: {tokenBalance} WXM</span>
+                        <span>Balance: {isLoading ? 'Loading...' : `${tokenBalance} WXM`}</span>
                         <button 
                           onClick={() => setAmount(tokenBalance)}
-                          className="text-green-400 hover:text-green-300"
+                          disabled={isLoading || tokenBalance === '0'}
+                          className="text-green-400 hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Max
                         </button>
