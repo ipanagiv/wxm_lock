@@ -26,15 +26,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
     setMounted(true)
   }, [])
 
+  if (!mounted) {
+    return null
+  }
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        {mounted && (
-          <RainbowKitProvider>
-            {children}
-          </RainbowKitProvider>
-        )}
-        {!mounted && children}
+        <RainbowKitProvider>
+          {children}
+        </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   )

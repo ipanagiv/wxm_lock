@@ -3,7 +3,7 @@
 import { useAccount, useBlockNumber } from 'wagmi'
 import { Navbar } from '@/components/Navbar'
 import { useLocks } from '@/hooks/useLocks'
-import { formatEther } from 'ethers'
+import { formatEther } from 'viem'
 import { useState } from 'react'
 import { contract } from '@/lib/contract'
 
@@ -38,6 +38,8 @@ export default function Dashboard() {
     handleWithdraw,
     isInitiatingUnlock,
     isWithdrawing,
+    handleLock,
+    isLocking,
   } = useLocks()
   const [transactions, setTransactions] = useState<Transaction[]>([])
 
@@ -92,7 +94,13 @@ export default function Dashboard() {
                           placeholder="0.0"
                           className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
-                        <button className="gradient-button">Lock</button>
+                        <button 
+                          onClick={handleLock}
+                          disabled={isLocking}
+                          className="gradient-button disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isLocking ? 'Processing...' : 'Lock'}
+                        </button>
                       </div>
                       <div className="flex justify-between text-sm text-gray-400">
                         <span>Balance: {isLoading ? 'Loading...' : `${tokenBalance} WXM`}</span>

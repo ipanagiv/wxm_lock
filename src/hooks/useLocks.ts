@@ -107,7 +107,7 @@ export function useLocks() {
   const { writeContract: withdraw, isPending: isWithdrawing } = useWriteContract()
 
   const handleLock = async () => {
-    if (!amount) return
+    if (!amount || !address) return
     try {
       await lock({
         ...contract,
@@ -115,6 +115,15 @@ export function useLocks() {
         args: [parseEther(amount)],
       })
       setAmount('')
+      // Refresh locks after successful lock
+      const newLockCount = await useReadContract({
+        ...contract,
+        functionName: 'getLockCount',
+        args: [address as `0x${string}`],
+      }).data
+      if (newLockCount) {
+        setLockCount(Number(newLockCount))
+      }
     } catch (error) {
       console.error('Error locking tokens:', error)
     }
